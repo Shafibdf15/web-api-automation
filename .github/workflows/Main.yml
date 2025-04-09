@@ -1,0 +1,64 @@
+name: Web & API Automation CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code
+    - uses: actions/checkout@v4
+
+    # Step 2: Set up Java 17 for Gradle + Tests
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    # Step 3: Set up Chrome for Selenium Web UI tests
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@v1.7.3
+
+    # Step 4: Make gradlew executable
+    - name: Setup gradlew
+      run: chmod +x gradlew
+
+    # Step 5: Run Web Automation (Cucumber) Tests
+    - name: Run Cucumber Tests
+      run: ./gradlew runCucumberTest
+
+    # Step 6: Run API Automation (TestNG) Tests
+    - name: Run API Tests
+      run: ./gradlew apiTest
+
+    # Step 7: Combine Web and API Reports
+    - name: Combine Test Reports
+      if: always()
+      run: |
+        mkdir -p combined/web
+        mkdir -p combined/api
+        cp -r reports/* combined/web || echo "No Web Report Found"
+        cp -r build/reports/tests/apiTest/* combined/api || echo "No API Report Found"
+
+    # Step 8: Upload Combined Report as Artifact
+    - name: Upload Combined Report
+      if: always()
+      uses: actions/upload-artifact@v4.6.2
+      with:
+        name: Combined Report
+        path: combined
+
+    # Step 9: Deploy Combined Report to GitHub Pages
+    - name: Deploy Report to GitHub Pages
+      if: always()
+      uses: peaceiris/actions-gh-pages@v4.0.0
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: combined
