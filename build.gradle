@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    //Web Automation Dependencies
+    testImplementation 'org.seleniumhq.selenium:selenium-java:4.30.0'
+    testImplementation("io.github.bonigarcia:webdrivermanager:6.0.0")
+    testImplementation 'io.cucumber:cucumber-java:7.8.1'
+    testImplementation 'io.cucumber:cucumber-junit:7.8.1'
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    //API dependencies
+    testImplementation group: 'org.testng', name: 'testng', version: '7.7.0'
+    testImplementation group: 'io.rest-assured', name: 'rest-assured', version: '5.3.0'
+    testImplementation group: 'org.json', name: 'json', version: '20231013'
+    testImplementation group: 'io.rest-assured', name: 'json-schema-validator', version: '5.3.0'
+}
+
+
+/*test {
+    useJUnit()
+}*/
+
+configurations {
+    cucumberRuntime {
+        extendsFrom testImplementation
+    }
+}
+
+def tags = (findProperty('tags') == null) ? 'not @exclude' : findProperty('tags') + ' and not @exclude'
+
+task runCucumberTest() {
+    description("Running Cucumber Test")
+    dependsOn assemble, compileTestJava
+    doLast {
+        javaexec {
+            mainClass.set("io.cucumber.core.cli.Main")
+            classpath = configurations.cucumberRuntime + sourceSets.main.output + sourceSets.test.output
+            args = [
+                    '--plugin', 'html:reports/index.html',
+                    '--plugin', 'pretty',
+                    '--glue', 'web.CaseDefinitions',
+                    'src/test/resources/webAutomation'
+            ]
+        }
+    }
+}
+
+task apiTest(type: Test) {
+    useTestNG {
+        suites "src/test/resources/testsuite.xml"
+    }
+    testLogging {
+        events "PASSED", "FAILED", "SKIPPED"
+    }
+}
+
+
